@@ -36,23 +36,29 @@ if st.button("Predict Price"):
     features['total_rooms'] = bedrooms + bathrooms
     features['price_per_room'] = area / (bedrooms + bathrooms) if (bedrooms + bathrooms) else 0
 
-    # Placeholder feature (if used during training)
+    # Add default season values (model expects them)
+    features['season_summer'] = 0
+    features['season_winter'] = 0
+
+    # Location cluster placeholder
     features['location_cluster'] = 0
 
-    # Ordered column list
+    # Ensure correct feature order
     ordered_feature_names = [
         'property_type_Flat', 'property_type_House', 'property_type_Lower Portion',
         'property_type_Room', 'property_type_Upper Portion', 'location_DHA Defence',
         'location_E-11', 'location_F-11', 'location_F-7', 'location_F-8',
         'location_G-13', 'location_Other', 'Total_Area_log', 'bed_bath_ratio',
-        'total_rooms', 'price_per_room', 'location_cluster'
+        'total_rooms', 'season_summer', 'season_winter', 'price_per_room',
+        'location_cluster'
     ]
 
-    # Convert to DataFrame to match model input
+    # Create input DataFrame with feature names
     input_data = pd.DataFrame([features], columns=ordered_feature_names)
 
-    # Prediction
+    # Predict and inverse-transform
     predicted_price_log = model.predict(input_data)[0]
     predicted_price = np.expm1(predicted_price_log)
 
+    # Show result
     st.success(f"🏷️ Estimated House Price: PKR {predicted_price:,.0f}")
