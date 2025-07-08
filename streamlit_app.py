@@ -19,6 +19,18 @@ bathrooms = st.number_input("Bathrooms", min_value=0, max_value=10, value=2)
 
 # Predict button
 if st.button("Predict Price"):
+    st.write("🔍 Input features:")
+st.write(input_data)
+
+scaled_log_price = model.predict(input_data)[0]
+st.write("🔢 Scaled log prediction:", scaled_log_price)
+
+# Try unscale and exponentiate
+log_price = target_scaler.inverse_transform([[scaled_log_price]])[0][0]
+predicted_price = np.expm1(log_price)
+
+st.write("📉 Unscaled log price:", log_price)
+st.write("🏷️ Final PKR price:", predicted_price)
 
     # Feature engineering
     features = {}
