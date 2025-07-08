@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import pickle
 
-# Load model and scaler
-model = pickle.load(open("xgboost_house_price_model.pkl", "rb"))
-target_scaler = pickle.load(open("target_scaler.pkl", "rb"))
+model = pickle.load(open("models/xgboost_house_price_model.pkl", "rb"))
+target_scaler = pickle.load(open("models/target_scaler.pkl", "rb"))
+
 
 st.set_page_config(page_title="Pakistan House Price Predictor")
 st.title("🏠 House Price Prediction - Islamabad")
