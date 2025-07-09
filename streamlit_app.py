@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pickle
 import pandas as pd
+import datetime
 
 # Load the trained XGBoost model (trained on log1p(price))
 with open("xgboost_house_price_model.pkl", "rb") as f:
@@ -17,12 +18,10 @@ location = st.selectbox("Location", ['DHA Defence', 'E-11', 'F-11', 'F-7', 'F-8'
 area = st.number_input("Total Area (sq ft)", min_value=100, max_value=20000, value=1000)
 bedrooms = st.number_input("Bedrooms", min_value=0, max_value=10, value=2)
 bathrooms = st.number_input("Bathrooms", min_value=0, max_value=10, value=2)
-# Removed season input
 
 # Predict button
 if st.button("Predict Price"):
 
-    # Feature engineering
     features = {}
 
     # One-hot encoding: property_type
@@ -39,12 +38,22 @@ if st.button("Predict Price"):
     features['total_rooms'] = bedrooms + bathrooms
     features['price_per_room'] = area / (bedrooms + bathrooms) if (bedrooms + bathrooms) else 0
 
-    # Remove season; set default
-    features['season_summer'] = 0
-    features['season_winter'] = 0
+    # Auto-detect season based on current month
+    month = datetime.datetime.now().month
+    features['season_summer'] = 1 if month in [5, 6, 7, 8] else 0
+    features['season_winter'] = 1 if month in [11, 12, 1, 2] else 0
 
-    # Placeholder for cluster
-    features['location_cluster'] = 0
+    # Assign cluster based on location
+    cluster_map = {
+        'DHA Defence': 3,
+        'E-11': 1,
+        'F-11': 2,
+        'F-7': 0,
+        'F-8': 0,
+        'G-13': 2,
+        'Other': 4
+    }
+    features['location_cluster'] = cluster_map.get(location, 4)
 
     # Final feature order
     ordered_features = [
@@ -56,14 +65,18 @@ if st.button("Predict Price"):
         'location_cluster'
     ]
 
-    # Create input DataFrame
     input_df = pd.DataFrame([[features[feat] for feat in ordered_features]], columns=ordered_features)
 
     # Predict log(price)
     log_price = model.predict(input_df)[0]
 
-    # Inverse log1p to get actual price
+    # Inverse transform
     predicted_price = np.expm1(log_price)
 
-    # Show result
+    # Show predictions
     st.success(f"🏷️ Estimated House Price: PKR {predicted_price:,.0f}")
+
+    # Optional: Debugging info
+    st.write("🔍 Input features:")
+    st.dataframe(input_df)
+    st.write("🔢 Log price:", log_price)
