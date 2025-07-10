@@ -33,47 +33,39 @@ property_type = st.selectbox("Property Type", [
 ])
 
 if st.button("Predict Price"):
-    # --- Prepare input ---
-    feature_names = scaler.feature_names_in_.tolist()
-    input_data = dict.fromkeys(feature_names, 0)
-
-    # Engineered features
     try:
+        input_data = {}
+
+        # --- Step 1: Engineered numerical features ---
         input_data["Total_Area_log"] = np.log(area)
         input_data["bed_bath_ratio"] = bedrooms / bathrooms
         input_data["total_rooms"] = bedrooms + bathrooms
         input_data["area_per_bedroom"] = area / bedrooms
+        input_data["price_per_room"] = 0
+        input_data["is_weekend"] = 0
+        input_data["season_winter"] = 0
+        input_data["location_cluster"] = 0
+
+        # --- Step 2: One-hot encode location and property type ---
+        for col in scaler.feature_names_in_:
+            if col.startswith("location_"):
+                input_data[col] = 1 if col == f"location_{location}" else 0
+            elif col.startswith("property_type_"):
+                input_data[col] = 1 if col == f"property_type_{property_type}" else 0
+
+        # --- Step 3: Convert to DataFrame and scale ---
+        input_df = pd.DataFrame([input_data])
+        input_scaled = scaler.transform(input_df)
+
+        # --- Step 4: Predict ---
+        log_price = model.predict(input_scaled)[0]
+        predicted_price = np.exp(log_price)
+
+        # --- Step 5: Display result ---
+        st.subheader("🏷️ Estimated House Price")
+        st.success(f"PKR {predicted_price:,.0f}")
+
     except ZeroDivisionError:
         st.error("Bedrooms and bathrooms must be greater than zero.")
-        st.stop()
-
-    input_data["is_weekend"] = 0
-    input_data["season_winter"] = 0
-    input_data["location_cluster"] = 0
-    input_data["price_per_room"] = 0  # Not used at prediction time
-
-    # One-hot encode location and property type
-    loc_key = f"location_{location}"
-    ptype_key = f"property_type_{property_type}"
-
-    if loc_key in input_data:
-        input_data[loc_key] = 1
-    else:
-        st.warning(f"Location '{location}' not found in training set.")
-
-    if ptype_key in input_data:
-        input_data[ptype_key] = 1
-    else:
-        st.warning(f"Property type '{property_type}' not found in training set.")
-
-    # Convert to DataFrame and scale
-    input_df = pd.DataFrame([input_data])
-    input_scaled = scaler.transform(input_df)
-
-    # Predict
-    log_price = model.predict(input_scaled)[0]
-    predicted_price = np.exp(log_price)
-
-    # Display result
-    st.subheader("🏷️ Estimated House Price")
-    st.success(f"PKR {predicted_price:,.0f}")
+    except Exception as e:
+        st.error(f"Something went wrong: {e}")
