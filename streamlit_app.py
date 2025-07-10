@@ -4,6 +4,9 @@ import pickle
 import pandas as pd
 import os
 
+st.write("📁 Contents of /models:", os.listdir("models"))
+
+
 # 🎯 Load the model and scaler from /models/
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
