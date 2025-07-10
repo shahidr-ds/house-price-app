@@ -10,8 +10,8 @@ with open("models/xgboost_house_price_model.pkl", "rb") as f:
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# --- Get the feature names the scaler/model expects ---
-feature_names = scaler.feature_names_in_
+# --- Get feature names used during model training ---
+trained_feature_names = model.get_booster().feature_names
 
 # --- Streamlit UI ---
 st.title("🏠 House Price Prediction App")
@@ -30,13 +30,16 @@ property_type = st.sidebar.selectbox("Property Type", [
 ])
 
 if st.sidebar.button("Predict Price"):
-    # --- Create input data dictionary with all feature columns set to 0 ---
-    input_data = dict.fromkeys(feature_names, 0)
+
+    # --- Create base input with all zero columns ---
+    input_data = dict.fromkeys(trained_feature_names, 0)
+
+    # --- Set numeric features ---
     input_data["area"] = area
     input_data["bedrooms"] = bedrooms
     input_data["bathrooms"] = bathrooms
 
-    # --- Set one-hot encoded values for selected location and property type ---
+    # --- Set one-hot encoded fields ---
     location_col = f"location_{location}"
     prop_col = f"property_type_{property_type}"
 
@@ -45,19 +48,24 @@ if st.sidebar.button("Predict Price"):
     if prop_col in input_data:
         input_data[prop_col] = 1
 
-    # --- Convert to DataFrame and ensure correct column order ---
-    input_df = pd.DataFrame([input_data])[feature_names]
+    # --- Convert to DataFrame ---
+    input_df = pd.DataFrame([input_data])
 
-    # --- Scale the input ---
+    # --- Reorder columns to match training ---
+    input_df = input_df[trained_feature_names]
+
+    # --- Scale input data ---
     input_scaled = scaler.transform(input_df)
 
-    # --- Convert back to DataFrame with column names (required for XGBoost predict) ---
-    input_scaled_df = pd.DataFrame(input_scaled, columns=feature_names)
+    # --- Convert back to DataFrame with correct column names ---
+    input_scaled_df = pd.DataFrame(input_scaled, columns=trained_feature_names)
 
-    # --- Predict log(price) and revert back to actual price ---
+    # --- Predict log price ---
     log_price = model.predict(input_scaled_df, validate_features=True)[0]
+
+    # --- Convert from log(price) to actual price ---
     predicted_price = np.exp(log_price)
 
-    # --- Show result ---
+    # --- Display result ---
     st.subheader("🏷️ Predicted House Price")
     st.success(f"Estimated Price: **PKR {predicted_price:,.0f}**")
