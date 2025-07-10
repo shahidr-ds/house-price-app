@@ -74,6 +74,9 @@ if submit:
         if col not in input_df.columns:
             input_df[col] = 0
     input_df = input_df[final_features]
+    st.markdown("### 🔍 Final Features Sent to Model:")
+    st.write(input_df)
+
 
     # Scale & Predict
     X_scaled = scaler.transform(input_df)
