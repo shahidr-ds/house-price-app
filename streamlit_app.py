@@ -36,7 +36,7 @@ if st.button("Predict Price"):
     try:
         input_data = {}
 
-        # --- Step 1: Engineered numerical features ---
+        # --- Step 1: Raw and engineered numerical features ---
         input_data["Total_Area_log"] = np.log(area)
         input_data["bed_bath_ratio"] = bedrooms / bathrooms
         input_data["total_rooms"] = bedrooms + bathrooms
@@ -46,22 +46,34 @@ if st.button("Predict Price"):
         input_data["season_winter"] = 0
         input_data["location_cluster"] = 0
 
-        # --- Step 2: One-hot encode location and property type ---
+        # --- Step 2: Add original features expected by model ---
+        input_data["bedrooms"] = bedrooms
+        input_data["baths"] = bathrooms
+        input_data["distance_to_center"] = 10  # example default value
+        input_data["days_since_posted_log"] = np.log(30)  # example default value
+        input_data["season_summer"] = 0  # default unless season detection logic added
+
+        # --- Step 3: One-hot encode location and property type ---
         for col in scaler.feature_names_in_:
             if col.startswith("location_"):
                 input_data[col] = 1 if col == f"location_{location}" else 0
             elif col.startswith("property_type_"):
                 input_data[col] = 1 if col == f"property_type_{property_type}" else 0
 
-        # --- Step 3: Convert to DataFrame and scale ---
+        # --- Step 4: Fill in any missing features with 0 ---
+        for col in scaler.feature_names_in_:
+            if col not in input_data:
+                input_data[col] = 0
+
+        # --- Step 5: Convert to DataFrame and scale ---
         input_df = pd.DataFrame([input_data])
         input_scaled = scaler.transform(input_df)
 
-        # --- Step 4: Predict ---
+        # --- Step 6: Predict ---
         log_price = model.predict(input_scaled)[0]
         predicted_price = np.exp(log_price)
 
-        # --- Step 5: Display result ---
+        # --- Step 7: Display result ---
         st.subheader("🏷️ Estimated House Price")
         st.success(f"PKR {predicted_price:,.0f}")
 
