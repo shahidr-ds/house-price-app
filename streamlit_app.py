@@ -11,14 +11,14 @@ with open("models/xgboost_house_price_model.pkl", "rb") as f:
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# Feature list used during training
+# Get expected feature names from scaler
 feature_names = scaler.feature_names_in_
 
 # Streamlit UI
 st.title("🏠 House Price Prediction App")
-
 st.sidebar.header("Enter Property Details")
 
+# Input fields
 area = st.sidebar.number_input("Area (in marla)", min_value=1.0, max_value=100.0, value=5.0)
 bedrooms = st.sidebar.slider("Bedrooms", 1, 10, 3)
 bathrooms = st.sidebar.slider("Bathrooms", 1, 10, 2)
@@ -32,29 +32,29 @@ property_type = st.sidebar.selectbox("Property Type", [
 ])
 
 if st.sidebar.button("Predict Price"):
-
-    # Create empty row with all features
+    # Initialize input with zeros
     input_data = dict.fromkeys(feature_names, 0)
     input_data['area'] = area
     input_data['bedrooms'] = bedrooms
     input_data['bathrooms'] = bathrooms
 
-    # Set one-hot encoded features
+    # One-hot encode location and property_type
     location_col = f"location_{location}"
-    prop_col = f"property_type_{property_type}"
+    property_col = f"property_type_{property_type}"
 
     if location_col in input_data:
         input_data[location_col] = 1
-    if prop_col in input_data:
-        input_data[prop_col] = 1
+    if property_col in input_data:
+        input_data[property_col] = 1
 
-    # Create DataFrame and ensure column order matches training
+    # Create DataFrame and ensure correct column order
     input_df = pd.DataFrame([input_data])[feature_names]
 
-    # Scale input
+    # Scale input and ensure correct dtype for XGBoost
     input_scaled = scaler.transform(input_df)
+    input_scaled = np.array(input_scaled, dtype=np.float32)
 
-    # Predict
+    # Predict log price and convert back to price
     log_price = model.predict(input_scaled, validate_features=False)[0]
     predicted_price = np.exp(log_price)
 
