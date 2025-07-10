@@ -3,22 +3,20 @@ import pandas as pd
 import numpy as np
 import pickle
 
-# Load the trained model
+# Load model and scaler
 with open("models/xgboost_house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-# Load the fitted scaler
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# Get feature names from scaler
+# Get expected features
 feature_names = scaler.feature_names_in_
 
 # Streamlit UI
 st.title("🏠 House Price Prediction App")
 st.sidebar.header("Enter Property Details")
 
-# Input fields
 area = st.sidebar.number_input("Area (in marla)", min_value=1.0, max_value=100.0, value=5.0)
 bedrooms = st.sidebar.slider("Bedrooms", 1, 10, 3)
 bathrooms = st.sidebar.slider("Bathrooms", 1, 10, 2)
@@ -32,13 +30,14 @@ property_type = st.sidebar.selectbox("Property Type", [
 ])
 
 if st.sidebar.button("Predict Price"):
-    # Create an input row with all feature columns
+
+    # Create full input row with zeros
     input_data = dict.fromkeys(feature_names, 0)
     input_data['area'] = area
     input_data['bedrooms'] = bedrooms
     input_data['bathrooms'] = bathrooms
 
-    # Set one-hot encoded features
+    # Set one-hot encoded fields
     location_col = f"location_{location}"
     property_col = f"property_type_{property_type}"
 
@@ -47,19 +46,15 @@ if st.sidebar.button("Predict Price"):
     if property_col in input_data:
         input_data[property_col] = 1
 
-    # Convert to DataFrame with correct column order
+    # Create input DataFrame
     input_df = pd.DataFrame([input_data])[feature_names]
 
-    # Scale input
+    # Scale input and convert to float32 numpy array
     input_scaled = scaler.transform(input_df)
+    input_scaled = np.array(input_scaled, dtype=np.float32)
 
-    # Convert scaled array back to DataFrame for XGBoost
-    input_scaled_df = pd.DataFrame(input_scaled, columns=input_df.columns)
-
-    # Predict log(price)
-    log_price = model.predict(input_scaled_df, validate_features=False)[0]
-
-    # Convert back from log(price)
+    # Predict
+    log_price = model.predict(input_scaled, validate_features=False)[0]
     predicted_price = np.exp(log_price)
 
     # Show result
