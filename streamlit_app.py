@@ -65,8 +65,8 @@ if st.button("Predict Price"):
             if col not in input_data:
                 input_data[col] = 0
 
-        # --- Step 5: Convert to DataFrame and scale ---
-        input_df = pd.DataFrame([input_data])
+        # --- Step 5: Convert to DataFrame with correct feature order ---
+        input_df = pd.DataFrame([[input_data[col] for col in scaler.feature_names_in_]], columns=scaler.feature_names_in_)
         input_scaled = scaler.transform(input_df)
 
         # --- Step 6: Predict ---
