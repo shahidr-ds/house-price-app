@@ -34,7 +34,7 @@ property_type = st.selectbox("Property Type", [
 
 if st.button("Predict Price"):
     # --- Prepare input ---
-    feature_names = model.get_booster().feature_names
+    feature_names = scaler.feature_names_in_.tolist()
     input_data = dict.fromkeys(feature_names, 0)
 
     # Engineered features
