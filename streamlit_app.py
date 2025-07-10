@@ -49,9 +49,9 @@ if st.button("Predict Price"):
         # --- Step 2: Add original features expected by model ---
         input_data["bedrooms"] = bedrooms
         input_data["baths"] = bathrooms
-        input_data["distance_to_center"] = 10  # example default value
-        input_data["days_since_posted_log"] = np.log(30)  # example default value
-        input_data["season_summer"] = 0  # default unless season detection logic added
+        input_data["distance_to_center"] = 10
+        input_data["days_since_posted_log"] = np.log(30)
+        input_data["season_summer"] = 0
 
         # --- Step 3: One-hot encode location and property type ---
         for col in scaler.feature_names_in_:
@@ -65,11 +65,15 @@ if st.button("Predict Price"):
             if col not in input_data:
                 input_data[col] = 0
 
-        # --- Step 5: Convert to DataFrame with correct feature order ---
+        # --- Step 5: Convert to DataFrame in correct order ---
         input_df = pd.DataFrame([[input_data[col] for col in scaler.feature_names_in_]], columns=scaler.feature_names_in_)
-        input_scaled = scaler.transform(input_df)
 
-        # --- Step 6: Predict ---
+        # Debug: Show input
+        st.write("🔍 Input features sent to model:")
+        st.dataframe(input_df)
+
+        # --- Step 6: Scale & Predict ---
+        input_scaled = scaler.transform(input_df)
         log_price = model.predict(input_scaled)[0]
         predicted_price = np.exp(log_price)
 
