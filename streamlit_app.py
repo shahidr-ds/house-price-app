@@ -4,6 +4,17 @@ import pandas as pd
 import joblib
 from datetime import datetime
 
+import os
+import streamlit as st
+
+# Show the current working directory
+st.write("📂 Current working directory:", os.getcwd())
+
+# List all files in that directory
+st.write("📁 Files in this directory:")
+st.write(os.listdir())
+
+
 # Load trained model and preprocessors
 model = joblib.load("xgboost_house_price_model.pkl")
 scaler = joblib.load("scaler.pkl")               # StandardScaler used on X_train
