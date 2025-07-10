@@ -3,15 +3,15 @@ import pandas as pd
 import numpy as np
 import pickle
 
-# Load model
+# Load the trained model
 with open("models/xgboost_house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-# Load scaler
+# Load the fitted scaler
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# Get expected feature names from scaler
+# Get feature names from scaler
 feature_names = scaler.feature_names_in_
 
 # Streamlit UI
@@ -32,13 +32,13 @@ property_type = st.sidebar.selectbox("Property Type", [
 ])
 
 if st.sidebar.button("Predict Price"):
-    # Initialize input with zeros
+    # Create an input row with all feature columns
     input_data = dict.fromkeys(feature_names, 0)
     input_data['area'] = area
     input_data['bedrooms'] = bedrooms
     input_data['bathrooms'] = bathrooms
 
-    # One-hot encode location and property_type
+    # Set one-hot encoded features
     location_col = f"location_{location}"
     property_col = f"property_type_{property_type}"
 
@@ -47,15 +47,19 @@ if st.sidebar.button("Predict Price"):
     if property_col in input_data:
         input_data[property_col] = 1
 
-    # Create DataFrame and ensure correct column order
+    # Convert to DataFrame with correct column order
     input_df = pd.DataFrame([input_data])[feature_names]
 
-    # Scale input and ensure correct dtype for XGBoost
+    # Scale input
     input_scaled = scaler.transform(input_df)
-    input_scaled = np.array(input_scaled, dtype=np.float32)
 
-    # Predict log price and convert back to price
-    log_price = model.predict(input_scaled, validate_features=False)[0]
+    # Convert scaled array back to DataFrame for XGBoost
+    input_scaled_df = pd.DataFrame(input_scaled, columns=input_df.columns)
+
+    # Predict log(price)
+    log_price = model.predict(input_scaled_df, validate_features=False)[0]
+
+    # Convert back from log(price)
     predicted_price = np.exp(log_price)
 
     # Show result
