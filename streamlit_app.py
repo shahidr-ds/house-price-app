@@ -1,87 +1,70 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import pickle
+import joblib
+from datetime import datetime
 
-# --- Load model and scaler ---
-with open("models/xgboost_house_price_model.pkl", "rb") as f:
-    model = pickle.load(f)
+# Load trained model and preprocessors
+model = joblib.load("xgboost_house_price_model.pkl")
+scaler = joblib.load("scaler.pkl")               # StandardScaler used on X_train
+ohe = joblib.load("ohe.pkl")                     # OneHotEncoder fitted on property_type and location
+final_features = joblib.load("final_features.pkl")  # List of column names used in training
 
-with open("models/scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
+# Set title
+st.title("🏠 Pakistan House Price Prediction App")
 
-# --- Streamlit UI ---
-st.set_page_config(page_title="Pakistan House Price Prediction", layout="centered")
-st.title("🏠 House Price Prediction (Pakistan)")
+# User Inputs
+area = st.number_input("Total Area (in Marla)", value=5.0)
+bedrooms = st.number_input("Number of Bedrooms", min_value=1, max_value=10, value=3)
+bathrooms = st.number_input("Number of Bathrooms", min_value=1, max_value=10, value=2)
+distance_to_center = st.slider("Distance to City Center (km)", min_value=0.0, max_value=50.0, value=10.0)
 
-st.markdown("""
-This app predicts house prices in Pakistan based on area, rooms, location and more. 
-Make your selections below:
-""")
+property_type = st.selectbox("Property Type", ["Flat", "House", "Lower Portion", "Upper Portion", "Penthouse", "Room"])
+location = st.selectbox("Location", ohe.categories_[1].tolist())  # Assuming location is 2nd category in OHE
 
-# --- User inputs ---
-area = st.number_input("Total Area (in Marla)", min_value=1.0, value=5.0)
-bedrooms = st.number_input("Bedrooms", min_value=1, value=2)
-bathrooms = st.number_input("Bathrooms", min_value=1, value=2)
+# Feature Engineering
+total_area_log = np.log(area + 1)
+bed_bath_ratio = bedrooms / bathrooms if bathrooms != 0 else 0
+total_rooms = bedrooms + bathrooms
+season = datetime.today().month
+season_winter = 1 if season in [12, 1, 2] else 0
+area_per_bedroom = area / bedrooms if bedrooms != 0 else 0
+price_per_room = area / total_rooms if total_rooms != 0 else 0
+is_weekend = 1 if datetime.today().weekday() >= 5 else 0
+location_cluster = 0  # You can replace this if you had a KMeans cluster model
 
-location = st.selectbox("Location", [
-    "DHA Defence", "E-11", "F-7", "F-8", "G-13", "G-15", "Soan Garden", "Other"
-])
+# Categorical features to OHE
+cat_df = pd.DataFrame([[property_type, location]], columns=['property_type', 'location'])
+cat_encoded = ohe.transform(cat_df).toarray()
+cat_df_ohe = pd.DataFrame(cat_encoded, columns=ohe.get_feature_names_out())
 
-property_type = st.selectbox("Property Type", [
-    "Flat", "House", "Lower Portion", "Upper Portion", "Room", "Penthouse"
-])
+# Numerical features
+num_data = pd.DataFrame([{
+    'is_weekend': is_weekend,
+    'Total_Area_log': total_area_log,
+    'distance_to_center': distance_to_center,
+    'bed_bath_ratio': bed_bath_ratio,
+    'total_rooms': total_rooms,
+    'season_winter': season_winter,
+    'area_per_bedroom': area_per_bedroom,
+    'price_per_room': price_per_room,
+    'location_cluster': location_cluster
+}])
 
-if st.button("Predict Price"):
-    try:
-        input_data = {}
+# Combine all features
+input_df = pd.concat([cat_df_ohe, num_data], axis=1)
 
-        # --- Step 1: Raw and engineered numerical features ---
-        input_data["Total_Area_log"] = np.log(area)
-        input_data["bed_bath_ratio"] = bedrooms / bathrooms
-        input_data["total_rooms"] = bedrooms + bathrooms
-        input_data["area_per_bedroom"] = area / bedrooms
-        input_data["price_per_room"] = 0
-        input_data["is_weekend"] = 0
-        input_data["season_winter"] = 0
-        input_data["location_cluster"] = 0
+# Align with training features
+X = pd.DataFrame(columns=final_features)
+X = pd.concat([X, input_df], ignore_index=True).fillna(0)
 
-        # --- Step 2: Add original features expected by model ---
-        input_data["bedrooms"] = bedrooms
-        input_data["baths"] = bathrooms
-        input_data["distance_to_center"] = 10
-        input_data["days_since_posted_log"] = np.log(30)
-        input_data["season_summer"] = 0
+# Apply scaling
+X_scaled = scaler.transform(X)
 
-        # --- Step 3: One-hot encode location and property type ---
-        for col in scaler.feature_names_in_:
-            if col.startswith("location_"):
-                input_data[col] = 1 if col == f"location_{location}" else 0
-            elif col.startswith("property_type_"):
-                input_data[col] = 1 if col == f"property_type_{property_type}" else 0
+# Predict (model predicts log(price), we convert back)
+log_price = model.predict(X_scaled)[0]
+predicted_price = np.exp(log_price)
 
-        # --- Step 4: Fill in any missing features with 0 ---
-        for col in scaler.feature_names_in_:
-            if col not in input_data:
-                input_data[col] = 0
-
-        # --- Step 5: Convert to DataFrame in correct order ---
-        input_df = pd.DataFrame([[input_data[col] for col in scaler.feature_names_in_]], columns=scaler.feature_names_in_)
-
-        # Debug: Show input
-        st.write("🔍 Input features sent to model:")
-        st.dataframe(input_df)
-
-        # --- Step 6: Scale & Predict ---
-        input_scaled = scaler.transform(input_df)
-        log_price = model.predict(input_scaled)[0]
-        predicted_price = np.exp(log_price)
-
-        # --- Step 7: Display result ---
-        st.subheader("🏷️ Estimated House Price")
-        st.success(f"PKR {predicted_price:,.0f}")
-
-    except ZeroDivisionError:
-        st.error("Bedrooms and bathrooms must be greater than zero.")
-    except Exception as e:
-        st.error(f"Something went wrong: {e}")
+# Show result
+st.subheader("🏷️ Estimated Price:")
+st.success(f"PKR {predicted_price:,.0f}")
