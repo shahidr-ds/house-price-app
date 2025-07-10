@@ -12,7 +12,7 @@ final_features = joblib.load("final_features.pkl")
 
 st.title("🏠 Pakistan House Price Predictor")
 
-# Predefined location-to-center mapping
+# Location → distance mapping
 location_distance_dict = {
     'F-7': 0, 'F-8': 1, 'G-13': 12, 'G-15': 15,
     'E-11': 6, 'DHA Defence': 20, 'Soan Garden': 25, 'Bahria Town': 22
@@ -45,7 +45,7 @@ if submit:
     area_per_bedroom = area / bedrooms if bedrooms > 0 else 0
     price_per_room = area / total_rooms if total_rooms > 0 else 0
     is_weekend = 1 if datetime.today().weekday() >= 5 else 0
-    location_cluster = 0  # static or optional KMeans
+    location_cluster = 0
 
     # Categorical encoding
     cat_df = pd.DataFrame([[property_type, location]], columns=['property_type', 'location'])
@@ -65,18 +65,32 @@ if submit:
         'location_cluster': location_cluster
     }])
 
-    # Combine
+    # Combine all features
     input_df = pd.concat([cat_df_ohe, num_df], axis=1)
 
-    # Ensure correct features & order
+    # Ensure all expected features are present
     for col in final_features:
         if col not in input_df.columns:
             input_df[col] = 0
     input_df = input_df[final_features]
 
-    # Scale & predict
+    # Save the input for debugging
+    input_df.to_csv("input_df.csv", index=False)
+
+    # DEBUG: Show input before scaling
+    st.subheader("🧪 Model Input (Pre-Scaling)")
+    st.dataframe(input_df)
+
+    # Scale and predict
     X_scaled = scaler.transform(input_df)
+
+    # DEBUG: Show scaled data
+    st.subheader("📐 Scaled Input for Model")
+    st.dataframe(pd.DataFrame(X_scaled, columns=final_features))
+
+    # Predict
     log_price = model.predict(X_scaled)[0]
+    st.write(f"🔢 Log Predicted Price: {log_price:.4f}")
     predicted_price = np.exp(log_price)
 
     # Output
