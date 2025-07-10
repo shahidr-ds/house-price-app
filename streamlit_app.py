@@ -3,17 +3,17 @@ import pandas as pd
 import numpy as np
 import pickle
 
-# Load model and scaler
+# --- Load model and scaler ---
 with open("models/xgboost_house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
 
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# Get expected features
+# --- Get the feature names the scaler/model expects ---
 feature_names = scaler.feature_names_in_
 
-# Streamlit UI
+# --- Streamlit UI ---
 st.title("🏠 House Price Prediction App")
 st.sidebar.header("Enter Property Details")
 
@@ -30,33 +30,34 @@ property_type = st.sidebar.selectbox("Property Type", [
 ])
 
 if st.sidebar.button("Predict Price"):
-
-    # Create full input row with zeros
+    # --- Create input data dictionary with all feature columns set to 0 ---
     input_data = dict.fromkeys(feature_names, 0)
-    input_data['area'] = area
-    input_data['bedrooms'] = bedrooms
-    input_data['bathrooms'] = bathrooms
+    input_data["area"] = area
+    input_data["bedrooms"] = bedrooms
+    input_data["bathrooms"] = bathrooms
 
-    # Set one-hot encoded fields
+    # --- Set one-hot encoded values for selected location and property type ---
     location_col = f"location_{location}"
-    property_col = f"property_type_{property_type}"
+    prop_col = f"property_type_{property_type}"
 
     if location_col in input_data:
         input_data[location_col] = 1
-    if property_col in input_data:
-        input_data[property_col] = 1
+    if prop_col in input_data:
+        input_data[prop_col] = 1
 
-    # Create input DataFrame
+    # --- Convert to DataFrame and ensure correct column order ---
     input_df = pd.DataFrame([input_data])[feature_names]
 
-    # Scale input and convert to float32 numpy array
+    # --- Scale the input ---
     input_scaled = scaler.transform(input_df)
-    input_scaled = np.array(input_scaled, dtype=np.float32)
 
-    # Predict
-    log_price = model.predict(input_scaled, validate_features=False)[0]
+    # --- Convert back to DataFrame with column names (required for XGBoost predict) ---
+    input_scaled_df = pd.DataFrame(input_scaled, columns=feature_names)
+
+    # --- Predict log(price) and revert back to actual price ---
+    log_price = model.predict(input_scaled_df, validate_features=True)[0]
     predicted_price = np.exp(log_price)
 
-    # Show result
+    # --- Show result ---
     st.subheader("🏷️ Predicted House Price")
     st.success(f"Estimated Price: **PKR {predicted_price:,.0f}**")
