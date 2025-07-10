@@ -3,6 +3,11 @@ import numpy as np
 import pickle
 import pandas as pd
 
+import os
+st.write("📂 Current working directory:", os.getcwd())
+st.write("📄 Files in current dir:", os.listdir())
+
+
 # Load trained model (trained on scaled log(price))
 with open("xgboost_house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
