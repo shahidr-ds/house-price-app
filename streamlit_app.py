@@ -62,22 +62,18 @@ if st.button("Predict Price"):
         st.error("Scaler missing `feature_names_in_`. Retrain with DataFrame instead of NumPy.")
         st.stop()
 
-    # Add missing columns with default 0
     for col in expected_columns:
         if col not in input_df.columns:
             input_df[col] = 0
 
-    # Reorder columns to match training
     input_df = input_df[expected_columns]
 
     # 🔄 Scale the input
     input_scaled_array = scaler.transform(input_df)
-
-    # 🧠 Convert to DataFrame to preserve column names (XGBoost needs them)
     input_scaled = pd.DataFrame(input_scaled_array, columns=input_df.columns)
 
     # 🔮 Predict log-price, then convert back
-    log_price = model.predict(input_scaled)[0]
+    log_price = model.predict(input_scaled, validate_features=False)[0]
     predicted_price = np.expm1(log_price)
 
     # 💡 Display results
