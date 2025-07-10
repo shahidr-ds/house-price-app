@@ -62,6 +62,10 @@ if st.sidebar.button("Predict Price"):
             input_scaled_df[col] = 0
 
     input_scaled_df = input_scaled_df[model_features]
+    st.write("Features in model:", model.get_booster().feature_names)
+st.write("bedrooms in features?", "bedrooms" in model.get_booster().feature_names)
+st.write("bathrooms in features?", "bathrooms" in model.get_booster().feature_names)
+
 
     # --- Step 6: Predict ---
     log_price = model.predict(input_scaled_df, validate_features=True)[0]
