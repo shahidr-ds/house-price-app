@@ -70,7 +70,7 @@ if st.button("Predict Price"):
 
     # 🔄 Scale the input
     input_scaled_array = scaler.transform(input_df)
-    input_scaled = pd.DataFrame(input_scaled_array, columns=input_df.columns)
+    
 
     # 🔮 Predict log-price, then convert back
     log_price = model.predict(input_scaled, validate_features=False)[0]
