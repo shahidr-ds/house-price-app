@@ -4,17 +4,14 @@ import pickle
 import pandas as pd
 import os
 
-st.write("📁 Contents of /models:", os.listdir("models"))
-
-
-# 🎯 Load the model and scaler from /models/
+# 🧠 Load model and scaler
 with open("models/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
 with open("models/xgboost_house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-# 🔧 App Config
+# 🛠 App settings
 st.set_page_config(page_title="Pakistan House Price Predictor")
 st.title("🏠 House Price Prediction - Islamabad")
 
@@ -29,17 +26,17 @@ area = st.number_input("Total Area (sq ft)", min_value=100, max_value=20000, val
 bedrooms = st.number_input("Bedrooms", min_value=1, max_value=10, value=2)
 bathrooms = st.number_input("Bathrooms", min_value=1, max_value=10, value=2)
 
-# 🚀 Predict Button
+# 🚀 Predict button
 if st.button("Predict Price"):
 
     # ⚙️ Feature Engineering
     features = {}
 
-    # One-hot encoding: Property Type
+    # One-hot: Property Type
     for pt in ['Flat', 'House', 'Lower Portion', 'Penthouse', 'Room', 'Upper Portion']:
         features[f'property_type_{pt}'] = 1 if property_type == pt else 0
 
-    # One-hot encoding: Location
+    # One-hot: Location
     for loc in ['DHA Defence', 'E-11', 'F-7', 'F-8', 'G-13', 'G-15', 'Other', 'Soan Garden']:
         features[f'location_{loc}'] = 1 if location == loc else 0
 
@@ -55,25 +52,32 @@ if st.button("Predict Price"):
     features['price_per_room'] = area / total_rooms
     features['location_cluster'] = 0
 
-    # 📊 Construct input DataFrame
+    # Create input DataFrame
     input_df = pd.DataFrame([features])
 
-    # ✅ Match training column order from scaler
+    # 🛡 Ensure all expected columns are present
     try:
         expected_columns = scaler.feature_names_in_
-        input_df = input_df[expected_columns]
     except AttributeError:
-        st.error("Scaler is missing `feature_names_in_`. Please retrain using a DataFrame.")
+        st.error("Scaler missing `feature_names_in_`. Retrain with DataFrame instead of NumPy.")
         st.stop()
 
-    # 🔄 Scale Input
+    # Add missing columns with default 0
+    for col in expected_columns:
+        if col not in input_df.columns:
+            input_df[col] = 0  # Safe default
+
+    # Reorder columns to match training
+    input_df = input_df[expected_columns]
+
+    # 🔄 Scale
     input_scaled = scaler.transform(input_df)
 
-    # 🔮 Predict (model trained on log1p(price))
+    # 🔮 Predict log-price, then convert
     log_price = model.predict(input_scaled)[0]
     predicted_price = np.expm1(log_price)
 
-    # ✅ Output
+    # 💡 Display
     st.subheader("🔍 Model Input Preview")
     st.dataframe(input_df)
 
