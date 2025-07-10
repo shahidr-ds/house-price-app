@@ -1,83 +1,70 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
 import pickle
-import pandas as pd
-import os
 
-# 🧠 Load model and scaler
-with open("models/scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
-
+# Load the trained model
 with open("models/xgboost_house_price_model.pkl", "rb") as f:
     model = pickle.load(f)
 
-# 🛠 App settings
-st.set_page_config(page_title="Pakistan House Price Predictor")
-st.title("🏠 House Price Prediction - Islamabad")
+# Load the scaler
+with open("models/scaler.pkl", "rb") as f:
+    scaler = pickle.load(f)
 
-# 📥 User Inputs
-property_type = st.selectbox("Property Type", [
-    'Flat', 'House', 'Lower Portion', 'Penthouse', 'Room', 'Upper Portion'
+# Define all possible feature columns (same as used in training)
+expected_columns = [
+    'area', 'bedrooms', 'bathrooms', 'location_DHA Defence', 'location_E-11',
+    'location_F-7', 'location_F-8', 'location_G-13', 'location_G-15',
+    'property_type_Flat', 'property_type_House', 'property_type_Lower Portion',
+    'property_type_Penthouse', 'property_type_Room', 'property_type_Upper Portion'
+]
+
+st.title("🏠 House Price Prediction App")
+
+# Sidebar inputs
+st.sidebar.header("Enter property details:")
+
+area = st.sidebar.number_input("Area (in marla)", min_value=1.0, max_value=100.0, value=5.0)
+bedrooms = st.sidebar.slider("Bedrooms", 1, 10, 3)
+bathrooms = st.sidebar.slider("Bathrooms", 1, 10, 2)
+
+location = st.sidebar.selectbox("Location", [
+    "DHA Defence", "E-11", "F-7", "F-8", "G-13", "G-15"
 ])
-location = st.selectbox("Location", [
-    'DHA Defence', 'E-11', 'F-7', 'F-8', 'G-13', 'G-15', 'Other', 'Soan Garden'
+
+property_type = st.sidebar.selectbox("Property Type", [
+    "Flat", "House", "Lower Portion", "Penthouse", "Room", "Upper Portion"
 ])
-area = st.number_input("Total Area (sq ft)", min_value=100, max_value=20000, value=1000)
-bedrooms = st.number_input("Bedrooms", min_value=1, max_value=10, value=2)
-bathrooms = st.number_input("Bathrooms", min_value=1, max_value=10, value=2)
 
-# 🚀 Predict button
-if st.button("Predict Price"):
+if st.sidebar.button("Predict Price"):
 
-    # ⚙️ Feature Engineering
-    features = {}
+    # Initialize a zero row
+    input_data = dict.fromkeys(expected_columns, 0)
+    input_data['area'] = area
+    input_data['bedrooms'] = bedrooms
+    input_data['bathrooms'] = bathrooms
 
-    # One-hot: Property Type
-    for pt in ['Flat', 'House', 'Lower Portion', 'Penthouse', 'Room', 'Upper Portion']:
-        features[f'property_type_{pt}'] = 1 if property_type == pt else 0
+    # Set the one-hot encoded values
+    location_col = f"location_{location}"
+    prop_col = f"property_type_{property_type}"
 
-    # One-hot: Location
-    for loc in ['DHA Defence', 'E-11', 'F-7', 'F-8', 'G-13', 'G-15', 'Other', 'Soan Garden']:
-        features[f'location_{loc}'] = 1 if location == loc else 0
+    if location_col in input_data:
+        input_data[location_col] = 1
 
-    # Numeric Features
-    total_rooms = bedrooms + bathrooms
-    features['Total_Area_log'] = np.log1p(area)
-    features['distance_to_center'] = 5
-    features['bed_bath_ratio'] = bedrooms / bathrooms
-    features['total_rooms'] = total_rooms
-    features['season_winter'] = 0
-    features['is_weekend'] = 0
-    features['area_per_bedroom'] = area / bedrooms
-    features['price_per_room'] = area / total_rooms
-    features['location_cluster'] = 0
+    if prop_col in input_data:
+        input_data[prop_col] = 1
 
-    # Create input DataFrame
-    input_df = pd.DataFrame([features])
+    # Convert to DataFrame
+    input_df = pd.DataFrame([input_data])
 
-    # 🛡 Ensure all expected columns are present
-    try:
-        expected_columns = scaler.feature_names_in_
-    except AttributeError:
-        st.error("Scaler missing `feature_names_in_`. Retrain with DataFrame instead of NumPy.")
-        st.stop()
+    # Scale the data
+    input_scaled = scaler.transform(input_df)
 
-    for col in expected_columns:
-        if col not in input_df.columns:
-            input_df[col] = 0
-
-    input_df = input_df[expected_columns]
-
-    # 🔄 Scale the input
-    input_scaled_array = scaler.transform(input_df)
-    
-
-    # 🔮 Predict log-price, then convert back
+    # Predict log price
     log_price = model.predict(input_scaled, validate_features=False)[0]
-    predicted_price = np.expm1(log_price)
 
-    # 💡 Display results
-    st.subheader("🔍 Model Input Preview")
-    st.dataframe(input_df)
+    # Convert log price to actual price
+    predicted_price = np.exp(log_price)
 
-    st.success(f"🏷️ Estimated House Price: PKR {predicted_price:,.0f}")
+    st.subheader("🏷️ Predicted House Price")
+    st.success(f"Estimated Price: **PKR {predicted_price:,.0f}**")
