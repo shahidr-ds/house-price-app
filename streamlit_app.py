@@ -60,4 +60,29 @@ if st.sidebar.button("Predict Price"):
     input_scaled = scaler.transform(input_df)
 
     # --- Step 6: Create DataFrame for model input ---
-    input_scaled_df = pd.DataFrame(input_scaled, columns=scaler_f
+    input_scaled_df = pd.DataFrame(input_scaled, columns=scaler_features)
+
+    # Fill any missing model features
+    for col in model_features:
+        if col not in input_scaled_df:
+            input_scaled_df[col] = 0
+
+    # Reorder columns for model
+    input_scaled_df = input_scaled_df[model_features]
+
+    # --- Step 7: Predict ---
+    log_price = model.predict(input_scaled_df, validate_features=True)[0]
+    predicted_price = np.exp(log_price)
+
+    # --- Step 8: Show result ---
+    st.subheader("🏷️ Predicted House Price")
+    st.success(f"Estimated Price: **PKR {predicted_price:,.0f}**")
+
+    # --- Debug Panel ---
+    with st.expander("🔎 Debug Info"):
+        st.write("Input before scaling:", input_df)
+        st.write("Input after scaling:", input_scaled_df)
+        st.write("Model expects features:", model_features)
+        st.write("Scaler expects features:", scaler_features)
+        st.write("bedrooms included?", "bedrooms" in model_features)
+        st.write("bathrooms included?", "bathrooms" in model_features)
